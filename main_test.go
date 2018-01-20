@@ -4,7 +4,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestExecuteHandler(t *testing.T) {
@@ -15,7 +18,6 @@ func TestExecuteHandler(t *testing.T) {
 	}
 
 	c := CassandraMigration{
-		called:  false,
 		command: "echo",
 		args:    []string{"-n", "test"},
 	}
@@ -39,7 +41,6 @@ func TestExecuteHandler(t *testing.T) {
 
 func TestHealthCheckHandler(t *testing.T) {
 	c := CassandraMigration{
-		called:  false,
 		command: "echo",
 		args:    []string{"-n", "test"},
 	}
@@ -75,8 +76,9 @@ func HealthCheckHandlerMock(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestHandleRequests(t *testing.T) {
+	http.DefaultServeMux = new(http.ServeMux)
+
 	c := CassandraMigration{
-		called:  false,
 		command: "echo",
 		args:    []string{"-n", "test"},
 	}
@@ -122,4 +124,67 @@ func TestHandleRequests(t *testing.T) {
 			status, http.StatusOK)
 	}
 
+}
+
+type timeTrack struct {
+	start   time.Time
+	elapsed time.Duration
+}
+
+func (tt *timeTrack) SecondsElapsed() int {
+	return int(tt.elapsed.Seconds())
+}
+
+func TestHandleConcurrentRequest(t *testing.T) {
+	http.DefaultServeMux = new(http.ServeMux)
+	sleepDuration := 1
+
+	c := CassandraMigration{
+		command: "sleep",
+		args:    []string{strconv.Itoa(sleepDuration)},
+	}
+
+	var wg sync.WaitGroup
+
+	rr := httptest.NewRecorder()
+
+	t1 := timeTrack{
+		start: time.Now(),
+	}
+
+	t2 := timeTrack{
+		start: t1.start,
+	}
+
+	http.HandleFunc("/run", c.ExecuteHandler)
+
+	req1, err := http.NewRequest("GET", "/run", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req2, err := http.NewRequest("GET", "/run", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wg.Add(1)
+	go func(tt *timeTrack) {
+		defer wg.Done()
+		http.DefaultServeMux.ServeHTTP(rr, req1)
+		tt.elapsed = time.Since(tt.start)
+	}(&t1)
+
+	wg.Add(1)
+	go func(tt *timeTrack) {
+		defer wg.Done()
+		http.DefaultServeMux.ServeHTTP(rr, req2)
+		tt.elapsed = time.Since(tt.start)
+	}(&t2)
+
+	wg.Wait()
+
+	if (sleepDuration != t1.SecondsElapsed() && sleepDuration != t2.SecondsElapsed()) || (sleepDuration*2 != t1.SecondsElapsed() && sleepDuration*2 != t2.SecondsElapsed()) {
+		t.Errorf("Concurrent requests were not run sequentially")
+	}
 }
