@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
+	"sync"
 )
 
 const (
@@ -19,7 +20,9 @@ func CheckErr(err error) {
 }
 
 type CassandraMigration struct {
-	called  bool
+	// Parallel executions of Casssandra Migrations could cause inconsistencies in th DB
+	// @TODO: implement a lock per Keyspace instead of blocking the entirely command execution
+	sync.Mutex
 	command string
 	args    []string
 }
@@ -36,7 +39,10 @@ func (c *CassandraMigration) ExecuteHandler(w http.ResponseWriter, r *http.Reque
 		panic(lookErr)
 	}
 
+	c.Lock()
 	output, execErr := exec.Command(binary, c.args...).CombinedOutput()
+	c.Unlock()
+
 	if execErr != nil {
 		panic(execErr)
 	}
@@ -54,7 +60,6 @@ func (c *CassandraMigration) HandleRequests() {
 
 func main() {
 	c := CassandraMigration{
-		called:  false,
 		command: "echo",
 		args:    []string{"-n", "test"},
 	}
