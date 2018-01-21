@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +9,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	billy "gopkg.in/src-d/go-billy.v4"
+	git "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/storage"
 )
 
 func TestExecuteHandler(t *testing.T) {
@@ -186,5 +191,25 @@ func TestHandleConcurrentRequest(t *testing.T) {
 
 	if (sleepDuration != t1.SecondsElapsed() && sleepDuration != t2.SecondsElapsed()) || (sleepDuration*2 != t1.SecondsElapsed() && sleepDuration*2 != t2.SecondsElapsed()) {
 		t.Errorf("Concurrent requests were not run sequentially")
+	}
+}
+
+func CloneMock(s storage.Storer, f billy.Filesystem, op *git.CloneOptions) (*git.Repository, error) {
+
+	if op.URL != MigrationRepositoryUrl {
+		return nil, errors.New("Wrong repository URL")
+	}
+
+	return &git.Repository{
+		Storer: s,
+	}, nil
+
+}
+
+func TestGitClone(t *testing.T) {
+	c := CassandraMigration{}
+	c.RepositoryClone(CloneMock)
+	if &c.repository == nil {
+		t.Errorf("Repository wasn't initialized")
 	}
 }
