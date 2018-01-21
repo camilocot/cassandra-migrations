@@ -3,28 +3,49 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"sync"
+
+	billy "gopkg.in/src-d/go-billy.v4"
+	git "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/storage"
+	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
 const (
-	ServerPort = "7777"
+	ServerPort             = "7777"
+	MigrationRepositoryUrl = "https://github.com/camilocot/cassandra-migrations"
 )
 
-func CheckErr(err error) {
-	if err != nil {
-		panic(err)
+// CheckIfError should be used to naively panics if an error is not nil.
+func CheckIfError(err error) {
+	if err == nil {
+		return
 	}
+
+	fmt.Printf("\x1b[31;1m%s\x1b[0m\n", fmt.Sprintf("error: %s", err))
+	os.Exit(1)
+}
+
+// Info should be used to describe the commands that are about to run.
+func Info(format string, args ...interface{}) {
+	fmt.Printf("\x1b[34;1m%s\x1b[0m\n", fmt.Sprintf(format, args...))
+}
+
+// Warning should be used to display a warning
+func Warning(format string, args ...interface{}) {
+	fmt.Printf("\x1b[36;1m%s\x1b[0m\n", fmt.Sprintf(format, args...))
 }
 
 type CassandraMigration struct {
 	// Parallel executions of Casssandra Migrations could cause inconsistencies in th DB
 	// @TODO: implement a lock per Keyspace instead of blocking the entirely command execution
 	sync.Mutex
-	command string
-	args    []string
+	command    string
+	args       []string
+	repository git.Repository
 }
 
 func (c *CassandraMigration) HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -58,16 +79,32 @@ func (c *CassandraMigration) HandleRequests() {
 	http.HandleFunc("/run", c.ExecuteHandler)
 }
 
+type Clone func(storage.Storer, billy.Filesystem, *git.CloneOptions) (*git.Repository, error)
+
+func (c *CassandraMigration) RepositoryClone(clone Clone) {
+
+	Info("git clone " + MigrationRepositoryUrl)
+
+	repository, err := clone(memory.NewStorage(), nil, &git.CloneOptions{
+		URL: MigrationRepositoryUrl,
+	})
+
+	CheckIfError(err)
+
+	c.repository = *repository
+}
+
 func main() {
+
 	c := CassandraMigration{
 		command: "echo",
 		args:    []string{"-n", "test"},
 	}
 
 	c.HandleRequests()
+	c.RepositoryClone(git.Clone)
 
 	fmt.Printf("Starting server for testing HTTP POST...\n")
-	if err := http.ListenAndServe(":"+ServerPort, nil); err != nil {
-		log.Fatal(err)
-	}
+	err := http.ListenAndServe(":"+ServerPort, nil)
+	CheckIfError(err)
 }
