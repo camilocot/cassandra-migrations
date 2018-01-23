@@ -213,3 +213,26 @@ func TestGitClone(t *testing.T) {
 		t.Errorf("Repository wasn't initialized")
 	}
 }
+
+func stringInSlice(a string, list []interface{}) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
+func TestUnmarshalBody(t *testing.T) {
+	body := UnmarshalBody([]byte(`{"Name":"Wednesday","Parents":["Morticia"]}`))
+
+	f := interface{}(body).(map[string]interface{})
+
+	if !stringInSlice("Morticia", f["Parents"].([]interface{})) {
+		t.Errorf("Morticia not found in parents")
+	}
+
+	if f["Name"] != "Wednesday" {
+		t.Errorf("Wednesday is not found")
+	}
+}

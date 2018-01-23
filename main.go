@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -92,6 +94,22 @@ func (c *CassandraMigration) RepositoryClone(clone Clone) {
 	CheckIfError(err)
 
 	c.repository = *repository
+}
+
+func GetConfig(url string) (body []byte) {
+	res, err := http.Get(url)
+	CheckIfError(err)
+
+	body, err = ioutil.ReadAll(res.Body)
+	CheckIfError(err)
+
+	return
+}
+
+func UnmarshalBody(body []byte) (m map[string]interface{}) {
+	err := json.Unmarshal(body, &m)
+	CheckIfError(err)
+	return
 }
 
 func main() {
