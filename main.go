@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -20,6 +19,11 @@ const (
 	ServerPort             = "7777"
 	MigrationRepositoryUrl = "https://github.com/camilocot/cassandra-migrations"
 )
+
+type CassandraMigrationConfig struct {
+	UserName string `json:"userName"`
+	Password string `json:"password"`
+}
 
 // CheckIfError should be used to naively panics if an error is not nil.
 func CheckIfError(err error) {
@@ -96,14 +100,12 @@ func (c *CassandraMigration) RepositoryClone(clone Clone) {
 	c.repository = *repository
 }
 
-func GetConfig(url string) (body []byte) {
+func GetConfigJson(url string, target interface{}) error {
 	res, err := http.Get(url)
 	CheckIfError(err)
+	defer res.Body.Close()
 
-	body, err = ioutil.ReadAll(res.Body)
-	CheckIfError(err)
-
-	return
+	return json.NewDecoder(res.Body).Decode(target)
 }
 
 func UnmarshalBody(body []byte) (m map[string]interface{}) {

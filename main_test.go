@@ -238,16 +238,24 @@ func TestUnmarshalBody(t *testing.T) {
 	}
 }
 
-func TestGetConfig(t *testing.T) {
-	expected := `{"fake config json string"}`
+func TestGetConfigJson(t *testing.T) {
+	expected := `{"userName":"fake username","password":"fake password"}`
+
+	cc := CassandraMigrationConfig{}
 	cs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		//w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, expected)
 	}))
 	defer cs.Close()
 
-	body := GetConfig(cs.URL)
-	if string(body) != expected {
-		t.Errorf("Body unexpected: " + string(body))
+	err := GetConfigJson(cs.URL, &cc)
+	CheckIfError(err)
+
+	if cc.UserName != "fake username" {
+		t.Errorf("Username unexpected: " + cc.UserName)
+	}
+
+	if cc.Password != "fake password" {
+		t.Errorf("Password unexpected: " + cc.Password)
 	}
 }
