@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -234,5 +235,19 @@ func TestUnmarshalBody(t *testing.T) {
 
 	if f["Name"] != "Wednesday" {
 		t.Errorf("Wednesday is not found")
+	}
+}
+
+func TestGetConfig(t *testing.T) {
+	expected := `{"fake config json string"}`
+	cs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, expected)
+	}))
+	defer cs.Close()
+
+	body := GetConfig(cs.URL)
+	if string(body) != expected {
+		t.Errorf("Body unexpected: " + string(body))
 	}
 }
