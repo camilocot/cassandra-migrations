@@ -1,20 +1,21 @@
 package interpolate
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-type convert func(path string, fi os.FileInfo, string old, string new) error
+type convert func(string, os.FileInfo, string, string) error
 
 func Walk(searchDir string) ([]string, error) {
 
 	fileList := make([]string, 0)
 	e := filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
-		fileList = append(fileList, path)
+		if fs, err := os.Stat(path); err == nil && !fs.IsDir() {
+			fileList = append(fileList, path)
+		}
 		return err
 	})
 
@@ -22,18 +23,10 @@ func Walk(searchDir string) ([]string, error) {
 		panic(e)
 	}
 
-	for _, file := range fileList {
-		fmt.Println(file)
-	}
-
 	return fileList, nil
 }
 
-func Replace(path string, fi os.FileInfo, string old, string new) error {
-
-	if err != nil {
-		return err
-	}
+func Replace(path string, fi os.FileInfo, old string, new string) (err error) {
 
 	if !!fi.IsDir() {
 		return nil
@@ -64,16 +57,21 @@ func Replace(path string, fi os.FileInfo, string old, string new) error {
 	return nil
 }
 
-func Interpolate(searchDir string, string old, string new, fn convert) error {
+func Interpolate(searchDir string, old string, new string, fn convert) error {
 	fileList, err := Walk(searchDir)
 	if err != nil {
 		return err
 	}
 
-	for f := range fileList {
-		err = fn(searchDir, f, old, new)
+	for _, f := range fileList {
+		fInfo, err := os.Stat(f)
+		if err != nil {
+			return err
+		}
+		err = fn(searchDir, fInfo, old, new)
 		if err != nil {
 			return err
 		}
 	}
+	return nil
 }
