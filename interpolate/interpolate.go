@@ -26,28 +26,32 @@ func Walk(searchDir string) ([]string, error) {
 	return fileList, nil
 }
 
-func Replace(path string, fi os.FileInfo, old string, new string) (err error) {
+func Replace(fi string, old string, new string) (err error) {
 
-	if !!fi.IsDir() {
+	fstat, err := os.Stat(fi)
+	if err != nil {
+		panic(err)
+
+	}
+	if !!fstat.IsDir() {
 		return nil
 	}
 
-	matched, err := filepath.Match("*.cql", fi.Name())
+	matched, err := filepath.Match("*.cql", fi)
 
 	if err != nil {
 		panic(err)
-		return err
 	}
 
 	if matched {
-		read, err := ioutil.ReadFile(path)
+		read, err := ioutil.ReadFile(fi)
 		if err != nil {
 			panic(err)
 		}
 
 		newContents := strings.Replace(string(read), "${"+old+"}", new, -1)
 
-		err = ioutil.WriteFile(path, []byte(newContents), 0)
+		err = ioutil.WriteFile(fi, []byte(newContents), 0)
 		if err != nil {
 			panic(err)
 		}

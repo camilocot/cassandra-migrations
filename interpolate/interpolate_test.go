@@ -39,3 +39,62 @@ func TestWalk(t *testing.T) {
 	}
 
 }
+
+func TestReplaceNoCQL(t *testing.T) {
+	content := []byte("temp ${file}")
+	dir, err := ioutil.TempDir("", "test")
+	fn := dir + "/testfile"
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	if err := ioutil.WriteFile(fn, content, 0666); err != nil {
+		log.Fatal(err)
+	}
+
+	err = Replace(fn, "file", "new")
+
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	c, err := ioutil.ReadFile(fn)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if string(content) != string(c) {
+		t.Errorf("Unexpected content in %s, content: %s", fn, c)
+	}
+}
+
+func TestReplaceCQL(t *testing.T) {
+	content := []byte("temp ${file}")
+	dir, err := ioutil.TempDir("", "test")
+	fn := dir + "/testfile.cql"
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	if err := ioutil.WriteFile(fn, content, 0666); err != nil {
+		log.Fatal(err)
+	}
+
+	err = Replace(fn, "file", "new")
+
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	c, err := ioutil.ReadFile(fn)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if string(content) != string(c) {
+		t.Errorf("Unexpected content in %s, content: %s", fn, c)
+	}
+
+}
