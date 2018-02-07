@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-type convert func(string, os.FileInfo, string, string) error
+type convert func(string, string, string) error
 
 func Walk(searchDir string) ([]string, error) {
 
@@ -26,7 +26,7 @@ func Walk(searchDir string) ([]string, error) {
 	return fileList, nil
 }
 
-func Replace(fi string, old string, new string) (err error) {
+func Replace(fi, old, new string) (err error) {
 
 	fstat, err := os.Stat(fi)
 	if err != nil {
@@ -61,18 +61,14 @@ func Replace(fi string, old string, new string) (err error) {
 	return nil
 }
 
-func Interpolate(searchDir string, old string, new string, fn convert) error {
+func Interpolate(searchDir, old, new string, fn convert) error {
 	fileList, err := Walk(searchDir)
 	if err != nil {
 		return err
 	}
 
 	for _, f := range fileList {
-		fInfo, err := os.Stat(f)
-		if err != nil {
-			return err
-		}
-		err = fn(searchDir, fInfo, old, new)
+		err = fn(f, old, new)
 		if err != nil {
 			return err
 		}
